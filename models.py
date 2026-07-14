@@ -10,60 +10,87 @@ student_course = Table(
     Column("course_id", Integer, ForeignKey("courses.id"), primary_key=True)
 )
 
-# Department
+
 class Department(Base):
     __tablename__ = "departments"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
 
-    # Quan hệ 1 - N
-    students = relationship(
-        "Student",
-        back_populates="department"
-    )
+    # ===== LỖI 1 (Quan hệ 1-N) =====
+    # Code cũ:
+    # students = relationship("Student", back_populates="department_id")
+    #
+    # Nguyên nhân:
+    # department_id là khóa ngoại (Column), không phải relationship.
+    # back_populates phải tham chiếu đến thuộc tính relationship ở model Student.
+    #
+    # Cách sửa:
+    # back_populates="department"
+    students = relationship("Student", back_populates="department")
 
-# Student
+
 class Student(Base):
     __tablename__ = "students"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(50), nullable=False)
 
-    # Khóa ngoại đến Department
-    department_id = Column(
-        Integer,
-        ForeignKey("departments.id")
-    )
+    department_id = Column(Integer, ForeignKey("departments.id"))
 
-    # Quan hệ N - 1
     department = relationship(
         "Department",
         back_populates="students"
     )
 
-    # Quan hệ 1 - 1
+    # ===== LỖI 2 (Quan hệ 1-1) =====
+    # Code cũ:
+    # profile = relationship("Profile", back_populates="student")
+    #
+    # Nguyên nhân:
+    # Không có uselist=False nên SQLAlchemy hiểu đây là quan hệ 1-N.
+    #
+    # Cách sửa:
+    # Thêm uselist=False để mỗi Student chỉ có một Profile.
     profile = relationship(
         "Profile",
         back_populates="student",
         uselist=False
     )
 
-    # Quan hệ N - N
+    # ===== LỖI 3 (Quan hệ N-N) =====
+    # Code cũ:
+    # courses = relationship("Course", back_populates="students")
+    #
+    # Nguyên nhân:
+    # Thiếu secondary=student_course nên SQLAlchemy
+    # không biết sử dụng bảng trung gian nào.
+    #
+    # Cách sửa:
+    # Thêm secondary=student_course.
     courses = relationship(
         "Course",
         secondary=student_course,
         back_populates="students"
     )
 
-# Profile
+
 class Profile(Base):
     __tablename__ = "profiles"
 
     id = Column(Integer, primary_key=True, index=True)
     bio = Column(String(255))
 
-    # unique=True đảm bảo 1 Profile / 1 Student
+    # ===== Sửa cho quan hệ 1-1 =====
+    # Code cũ:
+    # student_id = Column(Integer, ForeignKey("students.id"))
+    #
+    # Nguyên nhân:
+    # Thiếu unique=True nên nhiều Profile có thể cùng tham chiếu
+    # đến một Student.
+    #
+    # Cách sửa:
+    # Thêm unique=True để đảm bảo 1 Student chỉ có 1 Profile.
     student_id = Column(
         Integer,
         ForeignKey("students.id"),
@@ -76,15 +103,14 @@ class Profile(Base):
     )
 
 
-
-# Course
 class Course(Base):
     __tablename__ = "courses"
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(100), nullable=False)
 
-    # Quan hệ N - N
+    # ===== Sửa cho quan hệ N-N =====
+    # Thêm secondary=student_course để liên kết qua bảng trung gian.
     students = relationship(
         "Student",
         secondary=student_course,
